@@ -1,10 +1,10 @@
 {
-  "name": "plugin-template",
+  "name": "plugin-looker",
   "build": {
     "context": ".",
     "dockerfile": "Dockerfile"
   },
-  "workspaceFolder": "/workspaces/plugin-template",
+  "workspaceFolder": "/workspaces/plugin-looker",
   "forwardPorts": [8080],
   "customizations": {
     "vscode": {

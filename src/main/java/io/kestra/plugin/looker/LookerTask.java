@@ -1,4 +1,4 @@
-package io.kestra.plugin.templates;
+package io.kestra.plugin.looker;
 
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
@@ -31,13 +31,13 @@ import org.slf4j.Logger;
 
                 tasks:
                   - id: reverse
-                    type: io.kestra.plugin.templates.Example
+                    type: io.kestra.plugin.looker.LookerTask
                     format: "Text to be reverted"
                 """
         )
     }
 )
-public class Example extends Task implements RunnableTask<Example.Output> {
+public class LookerTask extends Task implements RunnableTask<LookerTask.Output> {
     @Schema(
         title = "Short description for this input",
         description = "Full description of this input"
@@ -45,7 +45,7 @@ public class Example extends Task implements RunnableTask<Example.Output> {
     private Property<String> format;
 
     @Override
-    public Example.Output run(RunContext runContext) throws Exception {
+    public LookerTask.Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
 
         String render = runContext.render(format).as(String.class).orElse("");
