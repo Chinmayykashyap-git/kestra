@@ -1,0 +1,9 @@
+group: io.kestra.plugin.looker.dashboards
+name: "dashboards"
+title: "Dashboards"
+description: "List and render Looker dashboards to PDF and images."
+body: "Tasks to list Looker dashboards and render them to PDF, PNG, or JPG files stored directly in Kestra internal storage."
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"
+
