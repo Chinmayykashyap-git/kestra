@@ -24,7 +24,6 @@ import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.looker.AbstractLookerTask;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -65,10 +64,13 @@ import lombok.experimental.SuperBuilder;
     }
 )
 public class Render extends AbstractLookerTask implements RunnableTask<Render.Output>, WorkerJobLifecycle {
-    @NotNull
     @Schema(title = "The ID of the dashboard to render")
     @PluginProperty(group = "main")
     private Property<String> dashboardId;
+
+    @Schema(title = "The ID of the saved Look to render instead of a dashboard")
+    @PluginProperty(group = "main")
+    private Property<String> lookId;
 
     @Schema(title = "Output file format")
     @PluginProperty(group = "main")
@@ -112,7 +114,11 @@ public class Render extends AbstractLookerTask implements RunnableTask<Render.Ou
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        String renderedDashboardId = runContext.render(this.dashboardId).as(String.class).orElseThrow();
+        String renderedDashboardId = this.dashboardId != null ? runContext.render(this.dashboardId).as(String.class).orElse(null) : null;
+        String renderedLookId = this.lookId != null ? runContext.render(this.lookId).as(String.class).orElse(null) : null;
+        if ((renderedDashboardId == null || renderedDashboardId.isBlank()) == (renderedLookId == null || renderedLookId.isBlank())) {
+            throw new IllegalArgumentException("Exactly one of 'dashboardId' or 'lookId' must be provided.");
+        }
         RenderFormat renderFormat = runContext.render(this.format).as(RenderFormat.class).orElse(RenderFormat.PDF);
         Duration interval = runContext.render(this.pollInterval).as(Duration.class).orElse(Duration.ofSeconds(1));
         Duration maxTimeout = runContext.render(this.timeout).as(Duration.class).orElse(Duration.ofMinutes(5));
@@ -135,7 +141,9 @@ public class Render extends AbstractLookerTask implements RunnableTask<Render.Ou
         }
 
         String formatStr = renderFormat.name().toLowerCase(Locale.ROOT);
-        String createEndpoint = "/api/4.0/render_tasks/dashboards/" + renderedDashboardId + "/" + formatStr;
+        String renderType = renderedDashboardId != null ? "dashboards" : "looks";
+        String renderId = renderedDashboardId != null ? renderedDashboardId : renderedLookId;
+        String createEndpoint = "/api/4.0/render_tasks/" + renderType + "/" + renderId + "/" + formatStr;
 
         try (var client = this.client(runContext)) {
             byte[] createResponse = client.request("POST", createEndpoint, HttpRequest.JsonRequestBody.of(body));
@@ -159,12 +167,7 @@ public class Render extends AbstractLookerTask implements RunnableTask<Render.Ou
                     throw new IllegalStateException("Looker dashboard render task '%s' ended with status '%s'.".formatted(taskId, status));
                 }
 
-                try {
-                    Thread.sleep(Math.max(100, interval.toMillis()));
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new IllegalStateException("Looker render task polling interrupted.", e);
-                }
+                this.waitForNextPoll(interval, deadline);
             }
 
             if (this.killed.get()) {
@@ -192,6 +195,25 @@ public class Render extends AbstractLookerTask implements RunnableTask<Render.Ou
     @Override
     public void kill() {
         this.killed.set(true);
+    }
+
+    private void waitForNextPoll(Duration interval, Instant deadline) {
+        long intervalMillis = Math.max(100, interval.toMillis());
+        long deadlineMillis = Math.max(0, Duration.between(Instant.now(), deadline).toMillis());
+        long remainingNanos = java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(Math.min(intervalMillis, deadlineMillis));
+        long nextPoll = System.nanoTime() + remainingNanos;
+
+        try {
+            while (!this.killed.get() && (remainingNanos = nextPoll - System.nanoTime()) > 0) {
+                java.util.concurrent.TimeUnit.NANOSECONDS.sleep(Math.min(
+                    remainingNanos,
+                    java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(100)
+                ));
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Looker render task polling interrupted.", e);
+        }
     }
 
     private static String parseTaskId(byte[] response) {

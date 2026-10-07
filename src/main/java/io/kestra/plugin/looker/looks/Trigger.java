@@ -2,6 +2,7 @@ package io.kestra.plugin.looker.looks;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -211,8 +212,8 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                 sb.append(String.format("%02x", b));
             }
             return sb.toString();
-        } catch (Exception e) {
-            return new String(bytes, StandardCharsets.UTF_8);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("Cannot calculate the Looker trigger result signature.", e);
         }
     }
 

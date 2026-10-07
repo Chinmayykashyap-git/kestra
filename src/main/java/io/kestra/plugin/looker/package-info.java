@@ -6,4 +6,3 @@
 package io.kestra.plugin.looker;
 
 import io.kestra.core.models.annotations.PluginSubGroup;
-import io.kestra.core.models.annotations.PluginSubGroup;

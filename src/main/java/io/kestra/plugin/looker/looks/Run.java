@@ -1,8 +1,11 @@
 package io.kestra.plugin.looker.looks;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.StringJoiner;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -49,6 +52,8 @@ import lombok.experimental.SuperBuilder;
                     clientId: "{{ secret('LOOKER_CLIENT_ID') }}"
                     clientSecret: "{{ secret('LOOKER_CLIENT_SECRET') }}"
                     lookId: "42"
+                    filters:
+                      orders.status: shipped
                     fetchType: FETCH
                 """
         )
@@ -78,6 +83,10 @@ public class Run extends AbstractLookerTask implements RunnableTask<FetchOutput>
     @PluginProperty(group = "processing")
     private Property<Boolean> applyFormatting;
 
+    @Schema(title = "Filter overrides keyed by Looker field name")
+    @PluginProperty(group = "main")
+    private Property<Map<String, String>> filters;
+
     @Override
     public FetchOutput run(RunContext runContext) throws Exception {
         String renderedLookId = runContext.render(this.lookId).as(String.class).orElseThrow();
@@ -91,6 +100,14 @@ public class Run extends AbstractLookerTask implements RunnableTask<FetchOutput>
         if (this.applyFormatting != null) {
             runContext.render(this.applyFormatting).as(Boolean.class).ifPresent(f -> queryParams.put("apply_formatting", f));
         }
+        Map<String, String> renderedFilters = runContext.render(this.filters).asMap(String.class, String.class);
+        if (!renderedFilters.isEmpty()) {
+            StringJoiner filter = new StringJoiner("&");
+            renderedFilters.forEach((field, value) -> filter.add(
+                URLEncoder.encode(field, StandardCharsets.UTF_8) + "=" + URLEncoder.encode(value, StandardCharsets.UTF_8)
+            ));
+            queryParams.put("filter", filter.toString());
+        }
 
         String endpoint = "/api/4.0/looks/" + renderedLookId + "/run/" + format.name().toLowerCase(Locale.ROOT);
 
@@ -100,4 +117,3 @@ public class Run extends AbstractLookerTask implements RunnableTask<FetchOutput>
         }
     }
 }
-

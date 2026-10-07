@@ -1,8 +1,9 @@
 package io.kestra.plugin.looker.schedules;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 import io.kestra.core.http.HttpRequest;
 import io.kestra.core.models.annotations.Example;
@@ -87,12 +88,12 @@ public class RunOnce extends AbstractLookerTask implements RunnableTask<RunOnce.
 
     private static Map<String, Object> parseResult(byte[] response) {
         if (response == null || response.length == 0) {
-            return Map.of("status", "success");
+            return Map.of();
         }
         try {
             return JacksonMapper.toMap(new String(response, StandardCharsets.UTF_8));
-        } catch (Exception e) {
-            return Map.of("raw", new String(response, StandardCharsets.UTF_8));
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Looker scheduled plan response was not valid JSON.", e);
         }
     }
 
@@ -103,4 +104,3 @@ public class RunOnce extends AbstractLookerTask implements RunnableTask<RunOnce.
         private final Map<String, Object> result;
     }
 }
-

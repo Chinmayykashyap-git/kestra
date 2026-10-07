@@ -24,7 +24,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -55,6 +54,7 @@ class LookerLookTasksTest {
             .lookId(Property.ofValue("42"))
             .limit(Property.ofValue("100"))
             .applyFormatting(Property.ofValue(true))
+            .filters(Property.ofValue(Map.of("orders.status", "shipped")))
             .resultFormat(Property.ofValue(ResultFormat.JSON))
             .fetchType(Property.ofValue(FetchType.FETCH))
             .build();
@@ -63,8 +63,11 @@ class LookerLookTasksTest {
 
         assertThat(output.getSize()).isEqualTo(2L);
         assertThat(output.getRows()).hasSize(2);
-        verify(getRequestedFor(urlEqualTo("/api/4.0/looks/42/run/json?limit=100&apply_formatting=true"))
-            .withHeader("Authorization", equalTo("token " + TOKEN)));
+        verify(getRequestedFor(urlPathEqualTo("/api/4.0/looks/42/run/json"))
+            .withHeader("Authorization", equalTo("token " + TOKEN))
+            .withQueryParam("limit", equalTo("100"))
+            .withQueryParam("apply_formatting", equalTo("true"))
+            .withQueryParam("filter", equalTo("orders.status=shipped")));
     }
 
     @Test
@@ -81,6 +84,7 @@ class LookerLookTasksTest {
             .clientId(Property.ofValue("client-id"))
             .clientSecret(Property.ofValue("client-secret"))
             .folderId(Property.ofValue("12"))
+            .title(Property.ofValue("Monthly Sales"))
             .fields(Property.ofValue(java.util.List.of("id", "title")))
             .fetchType(Property.ofValue(FetchType.FETCH))
             .build();
@@ -93,7 +97,8 @@ class LookerLookTasksTest {
             Map.of("id", "2", "title", "User Cohorts")
         );
         verify(getRequestedFor(urlPathEqualTo("/api/4.0/looks"))
-            .withHeader("Authorization", equalTo("token " + TOKEN)));
+            .withHeader("Authorization", equalTo("token " + TOKEN))
+            .withQueryParam("title", equalTo("Monthly Sales")));
     }
 
     private RunContext context() {

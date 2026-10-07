@@ -23,6 +23,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @WireMockTest
 @KestraTest
@@ -77,6 +78,24 @@ class LookerScheduleTasksTest {
             .withHeader("Authorization", equalTo("token " + TOKEN)));
     }
 
+    @Test
+    void shouldRejectMalformedScheduledPlanResponse(WireMockRuntimeInfo wireMockRuntimeInfo) throws Exception {
+        stubAuthentication();
+        stubFor(post(urlPathEqualTo("/api/4.0/scheduled_plans/105/run_once"))
+            .willReturn(aResponse().withStatus(200).withBody("{")));
+
+        RunOnce task = RunOnce.builder()
+            .baseUrl(Property.ofValue(wireMockRuntimeInfo.getHttpBaseUrl()))
+            .clientId(Property.ofValue("client-id"))
+            .clientSecret(Property.ofValue("client-secret"))
+            .scheduledPlanId(Property.ofValue("105"))
+            .build();
+
+        assertThatThrownBy(() -> task.run(context()))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("not valid JSON");
+    }
+
     private RunContext context() {
         return this.runContextFactory.of("looker-schedule-test");
     }
@@ -89,4 +108,3 @@ class LookerScheduleTasksTest {
             .willReturn(aResponse().withStatus(204)));
     }
 }
-

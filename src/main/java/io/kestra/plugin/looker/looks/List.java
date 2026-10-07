@@ -47,6 +47,7 @@ import lombok.experimental.SuperBuilder;
                     clientId: "{{ secret('LOOKER_CLIENT_ID') }}"
                     clientSecret: "{{ secret('LOOKER_CLIENT_SECRET') }}"
                     folderId: "12"
+                    title: "Monthly Sales"
                     fetchType: FETCH
                 """
         )
@@ -64,6 +65,10 @@ public class List extends AbstractLookerTask implements RunnableTask<FetchOutput
     @Schema(title = "Max number of looks to return")
     @PluginProperty(group = "main")
     private Property<String> limit;
+
+    @Schema(title = "Filter looks by title")
+    @PluginProperty(group = "main")
+    private Property<String> title;
 
     @Schema(title = "How to expose or store the results")
     @PluginProperty(group = "processing")
@@ -90,6 +95,9 @@ public class List extends AbstractLookerTask implements RunnableTask<FetchOutput
         if (this.limit != null) {
             runContext.render(this.limit).as(String.class).ifPresent(l -> queryParams.put("limit", l));
         }
+        if (this.title != null) {
+            runContext.render(this.title).as(String.class).ifPresent(t -> queryParams.put("title", t));
+        }
 
         String endpoint = "/api/4.0/looks";
 
@@ -99,4 +107,3 @@ public class List extends AbstractLookerTask implements RunnableTask<FetchOutput
         }
     }
 }
-
